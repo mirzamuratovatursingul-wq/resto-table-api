@@ -109,7 +109,10 @@ exports.staff = (profile, user) => ({
 // profiles: [{ ..., user: userId }] -> serialize(profile, userDoc)
 exports.withUsers = async (profiles, fn) => {
   const users = byId(await User.find({ _id: { $in: uniq(profiles.map((p) => p.user)) } }));
-  return profiles.map((p) => fn(p, users.get(p.user)));
+  // user'i o'chirilgan (yetim) profillar o'tkazib yuboriladi
+  return profiles
+    .filter((p) => users.has(p.user))
+    .map((p) => fn(p, users.get(p.user)));
 };
 
 // ---------- buyurtmalar ----------
