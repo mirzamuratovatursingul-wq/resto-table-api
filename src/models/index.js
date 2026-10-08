@@ -1,0 +1,17 @@
+module.exports = {
+  User: require('./User'),
+  RestaurantAdmin: require('./RestaurantAdmin'),
+  Staff: require('./Staff'),
+  Restaurant: require('./Restaurant'),
+  Table: require('./Table'),
+  Category: require('./Category'),
+  Dish: require('./Dish'),
+  Ingredient: require('./Ingredient'),
+  RecipeItem: require('./RecipeItem'),
+  StockTransaction: require('./StockTransaction'),
+  Order: require('./Order'),
+  OrderItem: require('./OrderItem'),
+  Reservation: require('./Reservation'),
+  RevokedToken: require('./RevokedToken'),
+  Lock: require('./Lock'),
+};
