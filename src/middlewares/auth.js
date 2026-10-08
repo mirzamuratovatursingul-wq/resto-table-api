@@ -30,19 +30,13 @@ exports.authenticate = async (req, res, next) => {
   next();
 };
 
-// Route darajasida rol tekshiruvi. superadmin har doim o'tadi.
+// Route darajasida rol tekshiruvi. Faqat sanalgan rollar o'tadi: superadmin ham alohida sanalmasa o'tmaydi,
+// shu sababli restoranlarning ichki ma'lumotlari unga yopiq.
 const restrictTo = (...roles) => (req, res, next) => {
-  if (req.user.role !== 'superadmin' && !roles.includes(req.user.role)) {
-    throw new ApiError(403, 'Bu amalni bajarishga ruxsatingiz yo\'q.');
-  }
-  next();
-};
-
-// Qat'iy variant: superadmin ham o'tmaydi (faqat mijozga tegishli amallar, masalan bron qilish)
-exports.restrictStrict = (...roles) => (req, res, next) => {
   if (!roles.includes(req.user.role)) throw new ApiError(403, 'Bu amalni bajarishga ruxsatingiz yo\'q.');
   next();
 };
 
 exports.restrictTo = restrictTo;
-exports.superadminOnly = restrictTo(); // rol berilmasa faqat superadmin
+exports.restrictStrict = restrictTo; // eski nom, ma'nosi bir xil
+exports.superadminOnly = restrictTo('superadmin');

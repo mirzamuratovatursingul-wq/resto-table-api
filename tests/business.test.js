@@ -1,6 +1,6 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { startServer, buildWorld, login, must } = require('./helpers');
+const { startServer, buildWorld, login, must, adminToken } = require('./helpers');
 
 describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
   let srv; let call; let W; let R; let T;
@@ -437,13 +437,14 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
   describe('ro\'yxatlar: sahifalash, tartib, menyu', () => {
     it('sahifalash: 10 tadan, next/previous, oxirgi sahifa, hajmlar yig\'indisi', async () => {
       const R3 = must(await call('POST', '/api/restaurants', { token: T.superadmin, body: { name: 'Sahifa', address: 'S', phone: '+998901118888', start_time: '09:00', end_time: '22:00' } }), 201);
-      for (let n = 1; n <= 25; n++) must(await call('POST', `/api/restaurants/${R3.id}/tables`, { token: T.superadmin, body: { seats: 2, number: n } }), 201);
-      const p1 = (await call('GET', `/api/restaurants/${R3.id}/tables`, { token: T.superadmin })).body;
+      const A3 = await adminToken(call, T.superadmin, R3.id, '+998944440031');
+      for (let n = 1; n <= 25; n++) must(await call('POST', `/api/restaurants/${R3.id}/tables`, { token: A3, body: { seats: 2, number: n } }), 201);
+      const p1 = (await call('GET', `/api/restaurants/${R3.id}/tables`, { token: A3 })).body;
       assert.equal(p1.count, 25); assert.equal(p1.results.length, 10); assert.equal(p1.previous, null);
       assert.match(p1.next, /page=2/);
-      const p2 = (await call('GET', `/api/restaurants/${R3.id}/tables?page=2`, { token: T.superadmin })).body;
+      const p2 = (await call('GET', `/api/restaurants/${R3.id}/tables?page=2`, { token: A3 })).body;
       assert.equal(p2.results.length, 10); assert.match(p2.previous, /page=1/); assert.match(p2.next, /page=3/);
-      const p3 = (await call('GET', `/api/restaurants/${R3.id}/tables?page=3`, { token: T.superadmin })).body;
+      const p3 = (await call('GET', `/api/restaurants/${R3.id}/tables?page=3`, { token: A3 })).body;
       assert.equal(p3.results.length, 5); assert.equal(p3.next, null);
       assert.deepEqual([...p1.results, ...p2.results, ...p3.results].map((x) => x.number), Array.from({ length: 25 }, (_, k) => k + 1), 'raqam bo\'yicha tartib');
     });
@@ -456,9 +457,10 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
     }
     it('menyu: kategoriyalar order_index bo\'yicha, ichida taomlar', async () => {
       const R4 = must(await call('POST', '/api/restaurants', { token: T.superadmin, body: { name: 'Menyu', address: 'S', phone: '+998901117777', start_time: '09:00', end_time: '22:00' } }), 201);
-      const mk = async (name, idx) => must(await call('POST', `/api/restaurants/${R4.id}/categories`, { token: T.superadmin, body: { name, order_index: idx } }), 201);
+      const A4 = await adminToken(call, T.superadmin, R4.id, '+998944440032');
+      const mk = async (name, idx) => must(await call('POST', `/api/restaurants/${R4.id}/categories`, { token: A4, body: { name, order_index: idx } }), 201);
       const b = await mk('Ikkinchi', '2'); const a = await mk('Birinchi', '1');
-      await call('POST', `/api/categories/${a.id}/dishes`, { token: T.superadmin, body: { name: 'Choy', price: '100' } });
+      await call('POST', `/api/categories/${a.id}/dishes`, { token: A4, body: { name: 'Choy', price: '100' } });
       const menu = (await call('GET', `/api/restaurants/${R4.id}/menu`, { token: T.customer })).body;
       assert.deepEqual(menu.map((c) => c.name), ['Birinchi', 'Ikkinchi']);
       assert.equal(menu[0].dishes.length, 1); assert.equal(menu[1].dishes.length, 0);

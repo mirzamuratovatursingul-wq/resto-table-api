@@ -6,7 +6,7 @@ const users = require('../services/user.service');
 const { assertAccess } = require('../services/access');
 const S = require('../serializers');
 
-// Xodimlarni restaurant admini (yoki superadmin) boshqaradi.
+// Xodimlarni restaurant admini boshqaradi (superadmin kira olmaydi).
 // Xodim roli = User.role (waiter | cook | storekeeper), shuning uchun ikkalasi doim sinxron.
 const ADMIN = ['restaurant_admin'];
 const serializeMany = (profiles) => S.withUsers(profiles, S.staff);

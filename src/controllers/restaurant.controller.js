@@ -40,7 +40,8 @@ exports.retrieve = async (req, res) => {
 
 exports.update = async (req, res) => {
   const restaurant = await findOr404(Restaurant, req.params.id);
-  assertAccess(req, restaurant._id, ['restaurant_admin']);
+  // Restoran ma'lumotlarini o'z admini yoki platforma egasi (superadmin) o'zgartiradi
+  if (req.user.role !== 'superadmin') assertAccess(req, restaurant._id, ['restaurant_admin']);
   restaurant.set(parseBody(req.body, rules, { partial: true }));
   await restaurant.save();
   res.json(S.restaurant(restaurant));

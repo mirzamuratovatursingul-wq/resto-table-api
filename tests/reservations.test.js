@@ -1,6 +1,6 @@
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { startServer, buildWorld, must, futureDate } = require('./helpers');
+const { startServer, buildWorld, must, futureDate, adminToken } = require('./helpers');
 
 describe('Bronlar', () => {
   let srv; let call; let W; let R; let T; let c2; let n = 0;
@@ -141,7 +141,8 @@ describe('Bronlar', () => {
     }
     it('nofaol restoranda bron qilib bo\'lmaydi', async () => {
       const off = must(await call('POST', '/api/restaurants', { token: T.superadmin, body: { name: 'Off', address: 'X', phone: '+998901110000', start_time: '09:00', end_time: '22:00', is_active: false } }), 201);
-      const t = must(await call('POST', `/api/restaurants/${off.id}/tables`, { token: T.superadmin, body: { seats: 4 } }), 201);
+      const AO = await adminToken(call, T.superadmin, off.id, '+998944440033');
+      const t = must(await call('POST', `/api/restaurants/${off.id}/tables`, { token: AO, body: { seats: 4 } }), 201);
       assert.equal((await cust('POST', `/api/restaurants/${off.id}/reservations`, slot(t, day(), '10:00', '1'))).status, 400);
     });
     it('mavjud bo\'lmagan restoran 404; faqat mijoz bron qila oladi', async () => {

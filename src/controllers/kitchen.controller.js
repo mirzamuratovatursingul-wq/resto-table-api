@@ -11,8 +11,7 @@ const KITCHEN = ['restaurant_admin', 'cook'];
 
 // GET /api/kitchen/items  - faqat oshxonaga yuborilgan, hali tayyor bo'lmagan taomlar
 exports.list = async (req, res) => {
-  const filter = { status: { $in: ['sent', 'cooking'] } };
-  if (req.user.role !== 'superadmin') filter.restaurant = req.restaurantId;
+  const filter = { status: { $in: ['sent', 'cooking'] }, restaurant: req.restaurantId };
   res.json(await paginate(req, OrderItem, filter, { sort: { sent_at: 1, _id: 1 }, serialize: S.kdsItems }));
 };
 

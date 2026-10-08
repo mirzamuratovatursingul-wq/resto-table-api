@@ -104,4 +104,10 @@ async function buildWorld(srv) {
   return { T, R1, R2, admin1, waiter, cook, storekeeper, table1, table2, category, dish, ingredient, recipe, order, item, reservation, su, a };
 }
 
-module.exports = { startServer, buildWorld, login, must, futureDate, SUPER };
+// Restoranga admin tayinlaydi va uning tokenini qaytaradi (superadmin restoran ichiga kira olmaydi)
+async function adminToken(call, superToken, restaurantId, phone) {
+  must(await call('POST', '/api/admins', { token: superToken, body: { restaurant: restaurantId, phone_number: phone, first_name: 'A', last_name: 'B', password: 'Password123' } }), 201, 'admin');
+  return (await login(call, phone, 'Password123')).access;
+}
+
+module.exports = { startServer, buildWorld, login, must, futureDate, SUPER, adminToken };

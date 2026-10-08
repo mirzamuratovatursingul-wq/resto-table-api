@@ -94,7 +94,7 @@ exports.create = async (req, res) => {
 
 // GET /api/reservations?status=&date=   (admin o'z restorani bronlarini ko'radi)
 exports.adminList = async (req, res) => {
-  const filter = req.user.role === 'superadmin' ? {} : { restaurant: req.restaurantId };
+  const filter = { restaurant: req.restaurantId };
   if (STATUSES.includes(req.query.status)) filter.status = req.query.status;
   // Sana faqat YYYY-MM-DD matn bo'lsa qo'llanadi (massiv/obyekt orqali filtrni buzishga yo'l qo'yilmaydi)
   if (typeof req.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)) filter.reservation_date = req.query.date;
