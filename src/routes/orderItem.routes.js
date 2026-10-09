@@ -4,5 +4,6 @@ const item = require('../controllers/orderItem.controller');
 // Buyurtmadagi taom. Qo'shish: POST /api/orders/:id/items
 router.delete('/:id', item.destroy);
 router.patch('/:id/quantity', item.addQuantity);
+router.patch('/:id/serve', item.serve);
 
 module.exports = router;

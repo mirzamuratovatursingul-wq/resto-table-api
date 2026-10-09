@@ -5,4 +5,6 @@ module.exports = createModel('Ingredient', {
   name: { type: String, required: true, trim: true },
   current_stock: { type: Number, default: 0 },
   unit: { type: String, enum: ['kg', 'l'], required: true },
+  // Minimal qoldiq: shundan kam bo'lsa "tugayapti" ogohlantirishi (0 = o'chiq)
+  min_stock: { type: Number, default: 0, min: 0 },
 });

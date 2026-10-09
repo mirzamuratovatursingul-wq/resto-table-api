@@ -6,8 +6,8 @@ const reservation = require('../controllers/reservation.controller');
 router.get('/my', restrictStrict('customer'), reservation.myList);
 router.patch('/:id/cancel', restrictStrict('customer'), reservation.cancel);
 
-// Restoran admini: bronlar ro'yxati va statusni o'zgartirish
-router.get('/', restrictTo('restaurant_admin'), reservation.adminList);
+// Restoran admini va ofitsiant (faqat o'qish): bronlar ro'yxati. Statusni faqat admin o'zgartiradi
+router.get('/', restrictTo('restaurant_admin', 'waiter'), reservation.adminList);
 router.patch('/:id/status', restrictTo('restaurant_admin'), reservation.changeStatus);
 
 module.exports = router;

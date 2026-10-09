@@ -8,7 +8,7 @@ module.exports = createModel('OrderItem', {
   dish_name: { type: String, default: '' },
   dish_price: { type: Number, default: 0 },
   quantity: { type: Number, required: true, min: 1 },
-  status: { type: String, enum: ['new', 'sent', 'cooking', 'ready'], default: 'new' },
+  status: { type: String, enum: ['new', 'sent', 'cooking', 'ready', 'served'], default: 'new' },
   note: { type: String, default: null },
   sent_at: { type: Date, default: null },
   stock_consumed: { type: Boolean, default: false },

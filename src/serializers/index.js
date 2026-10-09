@@ -54,6 +54,7 @@ exports.ingredient = (i) => ({
   name: i.name,
   current_stock: dec(i.current_stock, 3),
   unit: i.unit,
+  min_stock: dec(i.min_stock, 3),
 });
 
 exports.recipeItem = (r) => ({
@@ -138,6 +139,7 @@ exports.orderItemWrite = (i) => ({
 
 exports.orders = async (orders) => {
   const tables = byId(await Table.find({ _id: { $in: uniq(orders.map((o) => o.table)) } }));
+  const waiters = byId(await User.find({ _id: { $in: uniq(orders.map((o) => o.waiter)) } }));
   const items = await OrderItem.find({ order: { $in: orders.map((o) => o._id) } }).sort({ _id: 1 });
   const grouped = new Map();
   items.forEach((i) => grouped.set(i.order, [...(grouped.get(i.order) || []), i]));
@@ -149,10 +151,13 @@ exports.orders = async (orders) => {
       id: o._id,
       restaurant: o.restaurant,
       waiter: o.waiter,
+      waiter_name: waiters.get(o.waiter) ? `${waiters.get(o.waiter).first_name} ${waiters.get(o.waiter).last_name}`.trim() : '',
       table: o.table,
       table_number: o.table && tables.get(o.table) ? tables.get(o.table).number : null,
       status: o.status,
       payment_method: o.payment_method,
+      created_at: o.created_at,
+      closed_at: o.closed_at || null,
       order_items: list.map(exports.orderItem),
       total_order_price: dec(total),
     };
@@ -194,9 +199,14 @@ exports.reservations = async (list) => {
 
   return list.map((r) => ({
     id: r._id,
-    restaurant: { name: restos.get(r.restaurant)?.name },
-    table: { restaurant: r.restaurant, number: tables.get(r.table)?.number },
-    client: { phone_number: users.get(r.client)?.phone_number },
+    restaurant: { id: r.restaurant, name: restos.get(r.restaurant)?.name },
+    table: { id: r.table, restaurant: r.restaurant, number: tables.get(r.table)?.number },
+    client: {
+      phone_number: users.get(r.client)?.phone_number,
+      first_name: users.get(r.client)?.first_name,
+      last_name: users.get(r.client)?.last_name,
+    },
+    guests_count: r.guests_count,
     reservation_date: r.reservation_date,
     reservation_time: r.reservation_time,
     duration_hours: dec(r.duration_hours, 1),

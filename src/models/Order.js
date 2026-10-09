@@ -6,4 +6,6 @@ module.exports = createModel('Order', {
   table: ref('Table', { default: null }),
   status: { type: String, enum: ['open', 'closed'], default: 'open' },
   payment_method: { type: String, enum: ['cash', 'card', 'unset'], default: 'unset' },
+  // Yopilgan vaqt: hisobot va stol band bo'lgan vaqtni hisoblash uchun (qayta ochilsa null)
+  closed_at: { type: Date, default: null },
 });

@@ -15,6 +15,7 @@ const rules = {
   name: str({ required: true, max: 100 }),
   current_stock: decimal({ digits: 10, places: 3, min: 0 }),
   unit: choice(['kg', 'l'], { required: true }),
+  min_stock: decimal({ digits: 10, places: 3, min: 0 }),
 };
 const quantityRule = decimal({ required: true, digits: 10, places: 3, min: 0.001 });
 
@@ -47,11 +48,11 @@ exports.retrieve = async (req, res) => {
   res.json(S.ingredient(ingredient));
 };
 
-// PATCH /api/ingredients/{id}/   (faqat name va unit; qoldiq stock_in / stock_out orqali o'zgaradi)
+// PATCH /api/ingredients/{id}/   (name, unit va min_stock; qoldiq stock_in / stock_out orqali o'zgaradi)
 exports.update = async (req, res) => {
   const ingredient = await findOr404(Ingredient, req.params.id);
   assertAccess(req, ingredient.restaurant, STOCK);
-  ingredient.set(parseBody(req.body, { name: rules.name, unit: rules.unit }, { partial: true }));
+  ingredient.set(parseBody(req.body, { name: rules.name, unit: rules.unit, min_stock: rules.min_stock }, { partial: true }));
   await ingredient.save();
   res.json(S.ingredient(ingredient));
 };

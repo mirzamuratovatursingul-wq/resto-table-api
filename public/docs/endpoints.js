@@ -32,7 +32,8 @@
         { name: 'Stollar xaritasi', desc: 'Qaysi stol bo\'sh, qaysi biri band.', calls: ['GET /api/restaurants/{id}/tables'] },
         { name: 'Yangi buyurtma', desc: 'Stol tanlanadi, menyudan taomlar savatga qo\'shiladi.', calls: ['POST /api/restaurants/{id}/orders', 'GET /api/restaurants/{id}/menu', 'POST /api/orders/{id}/items'] },
         { name: 'Buyurtmani o\'zgartirish', desc: 'Sonni oshirish, taomni olib tashlash, stol yoki to\'lov turini o\'zgartirish.', calls: ['PATCH /api/order-items/{id}/quantity', 'DELETE /api/order-items/{id}', 'PATCH /api/orders/{id}'] },
-        { name: 'Oshxonaga yuborish', desc: 'Yangi taomlar oshpaz ekraniga tushadi; holatini kuzatish.', calls: ['POST /api/orders/{id}/send-to-kitchen', 'GET /api/orders/{id}'] },
+        { name: 'Oshxonaga yuborish', desc: 'Yangi taomlar oshpaz ekraniga tushadi; holatini kuzatish; tayyor taomni yetkazilgan deb belgilash.', calls: ['POST /api/orders/{id}/send-to-kitchen', 'GET /api/orders/{id}', 'PATCH /api/order-items/{id}/serve'] },
+        { name: 'Bugungi bronlar', desc: 'Zal bronlarini ko\'rish (faqat o\'qish).', calls: ['GET /api/reservations'] },
         { name: 'Mening buyurtmalarim', desc: 'O\'zim ochgan ochiq buyurtmalar (?status=open&mine=true).', calls: ['GET /api/restaurants/{id}/orders'] },
         { name: 'Hisobni yopish', desc: 'Mijoz to\'lagach buyurtma yopiladi, stol bo\'shaydi.', calls: ['PATCH /api/orders/{id}/status'] },
       ],
@@ -82,7 +83,7 @@
     { name: 'Table.status', desc: 'Stol holati (ochiq buyurtma bo\'lsa o\'zi "occupied" bo\'ladi)', values: [['free', 'Bo\'sh'], ['occupied', 'Band']] },
     { name: 'Order.status', desc: 'Buyurtma holati', values: [['open', 'Ochiq (qabullandi)'], ['closed', 'Yopildi (to\'langan)']] },
     { name: 'Order.payment_method', desc: 'To\'lov turi', values: [['unset', 'Hali tanlanmagan (boshlang\'ich qiymat)'], ['cash', 'Naqd'], ['card', 'Karta']] },
-    { name: 'OrderItem.status', desc: 'Buyurtmadagi taom holati. Ketma-ketlik: new → sent → cooking → ready', values: [['new', 'Yangi — ofitsiant qo\'shdi'], ['sent', 'Oshxonaga yuborildi'], ['cooking', 'Tayyorlanmoqda (ombordan ingredient yechiladi)'], ['ready', 'Tayyor']] },
+    { name: 'OrderItem.status', desc: 'Buyurtmadagi taom holati. Ketma-ketlik: new → sent → cooking → ready → served', values: [['new', 'Yangi — ofitsiant qo\'shdi'], ['sent', 'Oshxonaga yuborildi'], ['cooking', 'Tayyorlanmoqda (ombordan ingredient yechiladi)'], ['ready', 'Tayyor — ofitsiant olib chiqadi'], ['served', 'Yetkazildi (mijozga berildi)']] },
     { name: 'Reservation.status', desc: 'Bron holati', values: [['pending', 'Yaratildi (mijoz qildi)'], ['confirmed', 'Tasdiqlandi (admin)'], ['completed', 'Yopildi / tugadi'], ['cancelled', 'Bekor qilindi']] },
     { name: 'Ingredient.unit', desc: 'Ingredient o\'lchov birligi', values: [['kg', 'Kilogramm'], ['l', 'Litr']] },
     { name: 'RecipeItem.unit', desc: 'Retseptdagi o\'lchov (ombor birligiga avtomatik o\'giriladi)', values: [['kg', 'kg'], ['gr', 'gramm'], ['mg', 'milligramm'], ['l', 'litr'], ['ml', 'millilitr'], ['none', 'Ingredient birligida']] },
@@ -100,14 +101,14 @@
   M.dish = { id: 1, category: 1, name: 'Choy', price: '5000.00', is_available: true, description: null };
   M.dishDetail = { ...M.dish, recipe_items: [1] };
   M.menu = [{ ...M.category, dishes: [M.dish] }];
-  M.ingredient = { restaurant: 1, id: 1, name: 'Choy bargi', current_stock: '5.000', unit: 'kg' };
+  M.ingredient = { restaurant: 1, id: 1, name: 'Choy bargi', current_stock: '5.000', unit: 'kg', min_stock: '2.000' };
   M.recipe = { id: 1, dish: 1, ingredient: 1, quantity_per_serving: '5.000', unit: 'gr' };
   M.stockTx = { id: 1, type: 'in', quantity: '5.000', reason: 'Kirim', created_at: '2026-10-08T10:00:00.000Z', ingredient: 1 };
   M.orderItem = { id: 1, order: 1, dish: 'Choy', dish_price: '5000.00', quantity: 2, status: 'new', note: null, total_price: '10000.00' };
-  M.order = { id: 1, restaurant: 1, waiter: 3, table: 1, table_number: 1, status: 'open', payment_method: 'unset', order_items: [M.orderItem], total_order_price: '10000.00' };
+  M.order = { id: 1, restaurant: 1, waiter: 3, waiter_name: 'Bobur Aliyev', table: 1, table_number: 1, status: 'open', payment_method: 'unset', created_at: '2026-10-09T10:00:00.000Z', closed_at: null, order_items: [M.orderItem], total_order_price: '10000.00' };
   M.kds = { id: 1, order: 1, table_number: '1', dish_name: 'Choy', quantity: 2, status: 'sent', waiter_name: 'Bobur Aliyev', waiting_time_minutes: 3 };
-  M.reservation = { id: 1, restaurant: { name: 'Nukus Grill' }, table: { restaurant: 1, number: 1 }, client: { phone_number: '+998901000005' }, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
-  M.myReservation = { id: 1, restaurant: { name: 'Nukus Grill' }, table: { restaurant: 1, number: 1 }, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
+  M.reservation = { id: 1, restaurant: { id: 1, name: 'Nukus Grill' }, table: { id: 1, restaurant: 1, number: 1 }, client: { phone_number: '+998901000005', first_name: 'Aziz', last_name: 'Karimov' }, guests_count: 2, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
+  M.myReservation = { id: 1, restaurant: { id: 1, name: 'Nukus Grill' }, table: { id: 1, restaurant: 1, number: 1 }, guests_count: 2, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
   const page = (item) => ({ count: 1, next: null, previous: null, results: [item] });
 
   /* ---------- Yordamchilar ---------- */
@@ -245,9 +246,9 @@
     /* ================= OMBOR ================= */
     E('stock', 'GET', '/api/restaurants/{id}/ingredients', 'Ingredientlar', ['restaurant_admin', 'storekeeper', 'cook'], 'Ombordagi ingredientlar va qoldiqlari.', { params: [idp('id', 'Restoran id'), q('page', 'Sahifa', 1)], res: page(M.ingredient) }),
     E('stock', 'POST', '/api/restaurants/{id}/ingredients', 'Ingredient qo\'shish', ['restaurant_admin', 'storekeeper'], 'current_stock berilsa, u boshlang\'ich qoldiq sifatida tarixga yoziladi.',
-      { status: 201, params: [idp('id', 'Restoran id')], body: [f('name', 'string', true, 'Nomi', 'Choy bargi'), f('unit', 'string', true, 'kg | l', 'kg'), f('current_stock', 'decimal', false, 'Boshlang\'ich qoldiq', '5')], res: M.ingredient }),
+      { status: 201, params: [idp('id', 'Restoran id')], body: [f('name', 'string', true, 'Nomi', 'Choy bargi'), f('unit', 'string', true, 'kg | l', 'kg'), f('current_stock', 'decimal', false, 'Boshlang\'ich qoldiq', '5'), f('min_stock', 'decimal', false, 'Minimal qoldiq (ogohlantirish uchun, 0 — o\'chiq)', '2')], res: M.ingredient }),
     E('stock', 'GET', '/api/ingredients/{id}', 'Bitta ingredient', ['restaurant_admin', 'storekeeper', 'cook'], '', { params: [idp('id', 'Ingredient id')], res: M.ingredient }),
-    E('stock', 'PATCH', '/api/ingredients/{id}', 'Ingredientni tahrirlash', ['restaurant_admin', 'storekeeper'], 'Faqat nom va birlik. Qoldiq stock-in / stock-out orqali o\'zgaradi, shunda tarix to\'g\'ri saqlanadi.', { params: [idp('id', 'Ingredient id')], body: [f('name', 'string', false, 'Nomi', 'Qora choy'), f('unit', 'string', false, 'kg | l')], res: { ...M.ingredient, name: 'Qora choy' } }),
+    E('stock', 'PATCH', '/api/ingredients/{id}', 'Ingredientni tahrirlash', ['restaurant_admin', 'storekeeper'], 'Nom, birlik va minimal qoldiq. Qoldiq stock-in / stock-out orqali o\'zgaradi, shunda tarix to\'g\'ri saqlanadi.', { params: [idp('id', 'Ingredient id')], body: [f('name', 'string', false, 'Nomi', 'Qora choy'), f('unit', 'string', false, 'kg | l'), f('min_stock', 'decimal', false, 'Minimal qoldiq', '3')], res: { ...M.ingredient, name: 'Qora choy' } }),
     E('stock', 'DELETE', '/api/ingredients/{id}', 'Ingredientni o\'chirish', ['restaurant_admin', 'storekeeper'], 'Retseptlarda bu ingredient bo\'sh qoladi.', { params: [idp('id', 'Ingredient id')], status: 204 }),
     E('stock', 'PATCH', '/api/ingredients/{id}/stock-in', 'Omborga kirim', ['restaurant_admin', 'storekeeper'], 'Mahsulot kelganda qoldiqni oshiradi va tarixga "in" yozadi.',
       { params: [idp('id', 'Ingredient id')], body: [f('quantity', 'decimal', true, 'Miqdor (> 0)', '2'), f('reason', 'string', false, 'Izoh', 'Yangi partiya')], res: { ...M.ingredient, current_stock: '7.000' } }),
@@ -268,6 +269,7 @@
       { status: 201, params: [idp('id', 'Buyurtma id')], body: [f('dish', 'integer', true, 'Taom id', 1), f('quantity', 'integer', true, 'Soni (≥1)', 2), f('note', 'string', false, 'Izoh oshpazga', 'Shakarsiz')], res: { id: 1, order: 1, dish: 1, quantity: 2, status: 'new', note: 'Shakarsiz' }, errors: [[400, '{ "dish": ["Bu taom hozir mavjud emas (stop-list)."] }']] }),
     E('orders', 'POST', '/api/orders/{id}/send-to-kitchen', 'Oshxonaga yuborish', ['restaurant_admin', 'waiter'], 'Buyurtmadagi hamma yangi (new) taomlar sent ga o\'tadi va oshpaz ekranida paydo bo\'ladi. Yangi taom bo\'lmasa 400.', { params: [idp('id', 'Buyurtma id')], res: { detail: 'Oshxonaga jiberildi.', sent_items: 2 } }),
     E('orders', 'PATCH', '/api/order-items/{id}/quantity', 'Taom sonini oshirish', ['restaurant_admin', 'waiter'], 'quantity_add ga qo\'shadi (almashtirmaydi). Faqat hali oshxonaga yuborilmagan (new) taomga.', { params: [idp('id', 'Buyurtma elementi id')], body: [f('quantity_add', 'integer', true, 'Qo\'shiladigan son (≥1)', 1)], res: { id: 1, order: 1, dish: 1 } }),
+    E('orders', 'PATCH', '/api/order-items/{id}/serve', 'Taom yetkazildi', ['restaurant_admin', 'waiter'], 'Oshpaz tayyor (ready) qilgan taomni mijozga olib chiqqach shu orqali served qilinadi. Boshqa holatdagi taomga 400.', { params: [idp('id', 'Buyurtma elementi id')], res: { ...M.orderItem, status: 'served' }, errors: [[400, 'Taom hali tayyor emas.']] }),
     E('orders', 'DELETE', '/api/order-items/{id}', 'Taomni buyurtmadan olib tashlash', ['restaurant_admin', 'waiter'], '', { params: [idp('id', 'Buyurtma elementi id')], status: 204 }),
 
     /* ================= OSHXONA ================= */
@@ -282,7 +284,7 @@
       { status: 201, params: [idp('id', 'Restoran id')], body: [f('table', 'integer', true, 'Stol id', 1), f('reservation_date', 'date', true, 'Sana YYYY-MM-DD', ''), f('reservation_time', 'time', true, 'Vaqt HH:MM', '18:00'), f('guests_count', 'integer', false, 'Mehmonlar soni', 3), f('duration_hours', 'decimal', false, 'Soat (boshlang\'ich 1, min 0.5)', '2')], res: M.reservation, errors: [[400, '{ "reservation_time": ["Bu stol ko\'rsatilgan vaqtda band."] }']] }),
     E('reservations', 'GET', '/api/reservations/my', 'Mening bronlarim', ['customer'], 'Mijozning o\'z bronlari.', { params: [q('page', 'Sahifa', 1)], res: page(M.myReservation) }),
     E('reservations', 'PATCH', '/api/reservations/{id}/cancel', 'Bronni bekor qilish', ['customer'], 'Faqat o\'z broni. Yopilgan (completed) bronni bekor qilib bo\'lmaydi.', { params: [idp('id', 'Bron id')], res: { ...M.myReservation, status: 'cancelled' } }),
-    E('reservations', 'GET', '/api/reservations', 'Bronlar ro\'yxati (admin)', ['restaurant_admin'], 'Admin o\'z restoranining bronlarini ko\'radi.', { params: [q('status', 'pending | confirmed | completed | cancelled', ''), q('date', 'Sana YYYY-MM-DD', ''), q('page', 'Sahifa', 1)], res: page(M.reservation) }),
+    E('reservations', 'GET', '/api/reservations', 'Bronlar ro\'yxati (admin, ofitsiant)', ['restaurant_admin', 'waiter'], 'Admin va ofitsiant o\'z restoranining bronlarini ko\'radi (ofitsiant faqat o\'qiydi; statusni faqat admin o\'zgartiradi).', { params: [q('status', 'pending | confirmed | completed | cancelled', ''), q('date', 'Sana YYYY-MM-DD', ''), q('page', 'Sahifa', 1)], res: page(M.reservation) }),
     E('reservations', 'PATCH', '/api/reservations/{id}/status', 'Bron statusini o\'zgartirish', ['restaurant_admin'], 'Tasdiqlash, yopish yoki bekor qilish.', { params: [idp('id', 'Bron id')], body: [f('status', 'string', true, 'pending | confirmed | completed | cancelled', 'confirmed')], res: { ...M.reservation, status: 'confirmed' } }),
   ];
 

@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const { parseBody, int } = require('../utils/fields');
 const { findOr404 } = require('../utils/ids');
 const { assertAccess } = require('../services/access');
+const S = require('../serializers');
 
 const WRITE = ['restaurant_admin', 'waiter'];
 
@@ -11,6 +12,15 @@ exports.destroy = async (req, res) => {
   assertAccess(req, item.restaurant, WRITE);
   await item.deleteOne();
   res.status(204).end();
+};
+
+// PATCH /api/order-items/{id}/serve - tayyor taom mijozga yetkazildi (ready -> served)
+exports.serve = async (req, res) => {
+  const item = await findOr404(OrderItem, req.params.id);
+  assertAccess(req, item.restaurant, WRITE);
+  const updated = await OrderItem.findOneAndUpdate({ _id: item._id, status: 'ready' }, { status: 'served' }, { returnDocument: 'after' });
+  if (!updated) throw new ApiError(400, 'Faqat tayyor (ready) taomni yetkazilgan deb belgilash mumkin.');
+  res.json(S.orderItem(updated));
 };
 
 // PATCH /api/order-items/{id}/quantity  { quantity_add } - sonni oshiradi

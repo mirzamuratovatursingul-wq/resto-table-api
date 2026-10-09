@@ -87,6 +87,7 @@ exports.changeStatus = async (req, res) => {
   const data = parseBody(req.body, { status: choice(['open', 'closed']) }, { partial: true });
   if (data.status) {
     order.status = data.status;
+    order.closed_at = data.status === 'closed' ? new Date() : null;
     await order.save();
     await syncTable(order.table);
   }
