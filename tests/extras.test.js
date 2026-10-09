@@ -63,5 +63,33 @@ describe('Qo\'shimcha imkoniyatlar', () => {
     assert.equal((await call('PATCH', `/api/ingredients/${c.id}`, { token: T().cook, body: { min_stock: '1' } })).status, 403);
   });
 
+  it('superadmin: restoran royxatida admin obyekti, is_active/has_admin filtrlari va stats; boshqa rollarda admin yoq', async () => {
+    const su = (u) => call('GET', u, { token: T().superadmin });
+    const empty = must(await call('POST', '/api/restaurants', { token: T().superadmin, body: { name: 'Adminsiz', address: 'X', phone: '+998901119998', start_time: '09:00', end_time: '22:00', is_active: false } }), 201);
+    assert.equal(empty.admin, null);
+    const all = must(await su('/api/restaurants'), 200).results;
+    const r1 = all.find((x) => x.id === W.R1.id);
+    assert.equal(r1.admin.first_name, 'Admin');
+    assert.equal(r1.admin.phone_number, '+998911000001');
+    assert.equal(all.find((x) => x.id === empty.id).admin, null);
+    assert.deepEqual(must(await su('/api/restaurants?is_active=false'), 200).results.map((x) => x.id), [empty.id]);
+    assert.ok(must(await su('/api/restaurants?is_active=true'), 200).results.every((x) => x.is_active));
+    assert.deepEqual(must(await su('/api/restaurants?has_admin=false'), 200).results.map((x) => x.id), [empty.id]);
+    assert.ok(!must(await su('/api/restaurants?has_admin=true'), 200).results.some((x) => x.id === empty.id));
+    assert.deepEqual(must(await su('/api/restaurants/stats'), 200), { total: 3, active: 2, inactive: 1, without_admin: 1 });
+    assert.equal((await call('GET', '/api/restaurants/stats', { token: T().restaurant_admin })).status, 403);
+    assert.equal((await call('GET', '/api/restaurants/stats', { token: T().customer })).status, 403);
+    const asCustomer = must(await call('GET', '/api/restaurants', { token: T().customer }), 200).results[0];
+    assert.equal(asCustomer.admin, undefined, 'mijozga admin malumoti berilmaydi');
+    assert.equal(must(await call('GET', '/api/restaurants/' + W.R1.id, { token: T().superadmin }), 200).admin.first_name, 'Admin');
+  });
+
+  it('adminlar royxatida restoran nomi bor', async () => {
+    const list = must(await call('GET', '/api/admins', { token: T().superadmin }), 200).results;
+    assert.equal(list.find((a) => a.restaurant === W.R1.id).restaurant_name, 'Nukus Grill');
+    const one = must(await call('GET', '/api/admins/' + W.admin1.id, { token: T().superadmin }), 200);
+    assert.equal(one.restaurant_name, 'Nukus Grill');
+  });
+
   const T = () => W.T;
 });

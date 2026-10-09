@@ -93,8 +93,9 @@
   /* ---------- Javob namunalari ---------- */
   const M = {};
   M.restaurant = { id: 1, name: 'Nukus Grill', address: 'Nukus, Amir Temur 5', phone: '+998901112233', is_active: true, start_time: '09:00:00', end_time: '23:00:00' };
+  M.restaurantSA = { ...M.restaurant, admin: { id: 1, phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov' } };
   M.me = { id: 2, phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov', email: null, role: 'restaurant_admin', restaurant: { id: 1, name: 'Nukus Grill' } };
-  M.admin = { id: 1, restaurant: 1, phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov' };
+  M.admin = { id: 1, restaurant: 1, restaurant_name: 'Nukus Grill', phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov' };
   M.staff = { id: 1, restaurant: 1, role: 'waiter', is_active: true, phone_number: '+998901000002', first_name: 'Ofitsiant', last_name: 'Adminov' };
   M.table = { id: 1, restaurant: 1, number: 1, seats: 4, status: 'free' };
   M.category = { id: 1, restaurant: 1, name: 'Ichimliklar', order_index: '1' };
@@ -187,7 +188,8 @@
 
     /* ================= RESTORANLAR ================= */
     E('restaurants', 'GET', '/api/restaurants', 'Restoranlar ro\'yxati', ANY, 'Sahifalangan ro\'yxat. Mijoz shu yerdan restoran tanlaydi.',
-      { params: [q('search', 'Nom yoki manzil bo\'yicha qidirish', ''), q('is_active', 'true | false (faqat faol restoranlar uchun true)', ''), q('page', 'Sahifa raqami (1 dan)', 1)], res: page(M.restaurant) }),
+      { params: [q('search', 'Nom yoki manzil bo\'yicha qidirish', ''), q('is_active', 'true | false (true — faqat faol, false — faqat nofaol; filtr server tomonida)', ''), q('has_admin', 'true | false (faqat superadmin: admini bor / yo\'q restoranlar)', ''), q('page', 'Sahifa raqami (1 dan)', 1)], res: page(M.restaurantSA), tip: 'Superadmin javobida har bir restoranda admin obyekti (id, phone_number, first_name, last_name) yoki null bo\'ladi — alohida /api/admins so\'rovi shart emas.' }),
+    E('restaurants', 'GET', '/api/restaurants/stats', 'Restoranlar soni (kartochkalar uchun)', ['superadmin'], 'Hamma restoranlar bo\'yicha sonlar: jami, faol, nofaol va admini yo\'qlar.', { res: { total: 4, active: 3, inactive: 1, without_admin: 1 } }),
     E('restaurants', 'POST', '/api/restaurants', 'Restoran yaratish', ['superadmin'], 'Yangi restoran. Keyin shu restoranga admin tayinlang (POST /api/admins).',
       { status: 201, body: [f('name', 'string', true, 'Nomi (≤100)', 'Nukus Grill'), f('address', 'string', true, 'Manzil (≤150)', 'Nukus, Amir Temur 5'), f('phone', 'string', true, 'Telefon (≤13)', '+998901112233'), f('start_time', 'time', true, 'Ochilish vaqti HH:MM', '09:00'), f('end_time', 'time', true, 'Yopilish vaqti HH:MM', '23:00'), f('is_active', 'boolean', false, 'Faolmi (boshlang\'ich: true)', true)], res: M.restaurant }),
     E('restaurants', 'GET', '/api/restaurants/{id}', 'Bitta restoran', ANY, 'Restoran ma\'lumotlari.', { params: [idp('id', 'Restoran id')], res: M.restaurant }),
@@ -196,7 +198,7 @@
     E('restaurants', 'DELETE', '/api/restaurants/{id}', 'Restoranni o\'chirish', ['superadmin'], 'Restoran va unga tegishli hamma narsa (stol, menyu, ombor, buyurtma, bron, admin va xodimlar) o\'chadi.', { params: [idp('id', 'Restoran id')], status: 204 }),
 
     /* ================= ADMINLAR ================= */
-    E('admins', 'GET', '/api/admins', 'Adminlar ro\'yxati', ['superadmin'], 'Barcha restoran adminlari.', { params: [q('page', 'Sahifa', 1)], res: page(M.admin) }),
+    E('admins', 'GET', '/api/admins', 'Adminlar ro\'yxati', ['superadmin'], 'Barcha restoran adminlari. Har birida restoran nomi (restaurant_name) ham bor.', { params: [q('page', 'Sahifa', 1)], res: page(M.admin) }),
     E('admins', 'POST', '/api/admins', 'Admin yaratish', ['superadmin'], 'Restoranga admin tayinlaydi. Yaratilgan admin shu telefon va parol bilan login qiladi.',
       { status: 201, body: [f('restaurant', 'integer', true, 'Restoran id', 1), f('phone_number', 'string', true, 'Telefon', '+998911110000'), f('first_name', 'string', true, 'Ism', 'Admin'), f('last_name', 'string', true, 'Familiya', 'Adminov'), f('password', 'string', true, 'Parol (≥8)', 'Password123')], res: M.admin }),
     E('admins', 'GET', '/api/admins/{id}', 'Bitta admin', ['superadmin'], '', { params: [idp('id', 'Admin id')], res: M.admin }),

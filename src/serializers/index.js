@@ -1,6 +1,6 @@
 // Javob shakllari YAML schema'lariga mos (readOnly maydonlar; writeOnly lar qaytmaydi).
 const {
-  User, Restaurant, Table, OrderItem, RecipeItem, Order,
+  User, Restaurant, RestaurantAdmin, Table, OrderItem, RecipeItem, Order,
 } = require('../models');
 const { dec } = require('../utils/format');
 
@@ -18,6 +18,22 @@ exports.restaurant = (r) => ({
   start_time: r.start_time,
   end_time: r.end_time,
 });
+
+// Superadmin uchun: restoran + uning admini (bitta so'rovda, ortiqcha so'rovlarsiz). admin yo'q bo'lsa null.
+exports.restaurantsWithAdmin = async (restaurants) => {
+  const profiles = await RestaurantAdmin.find({ restaurant: { $in: restaurants.map((r) => r._id) } }).sort({ _id: 1 });
+  const users = byId(await User.find({ _id: { $in: uniq(profiles.map((p) => p.user)) } }));
+  const adminOf = new Map();
+  profiles.forEach((p) => {
+    const u = users.get(p.user);
+    if (u && !adminOf.has(p.restaurant)) {
+      adminOf.set(p.restaurant, {
+        id: p._id, phone_number: u.phone_number, first_name: u.first_name, last_name: u.last_name,
+      });
+    }
+  });
+  return restaurants.map((r) => ({ ...exports.restaurant(r), admin: adminOf.get(r._id) || null }));
+};
 
 exports.table = (t) => ({
   id: t._id,
@@ -93,11 +109,18 @@ exports.me = async (user, restaurantId) => {
   };
 };
 
-exports.restaurantAdmin = (profile, user) => ({
+exports.restaurantAdmin = (profile, user, restaurantName = null) => ({
   id: profile._id,
   restaurant: profile.restaurant,
+  restaurant_name: restaurantName,
   ...userFields(user),
 });
+
+// Adminlar ro'yxati: har birida restoran nomi ham bor
+exports.restaurantAdmins = async (profiles) => {
+  const restos = byId(await Restaurant.find({ _id: { $in: uniq(profiles.map((p) => p.restaurant)) } }).select('name'));
+  return exports.withUsers(profiles, (p, u) => exports.restaurantAdmin(p, u, restos.get(p.restaurant)?.name ?? null));
+};
 
 exports.staff = (profile, user) => ({
   id: profile._id,

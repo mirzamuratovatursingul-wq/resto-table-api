@@ -7,7 +7,7 @@ const users = require('../services/user.service');
 const S = require('../serializers');
 
 // Faqat superadmin uchun: restaurant adminlarini boshqarish
-const serializeMany = (profiles) => S.withUsers(profiles, S.restaurantAdmin);
+const serializeMany = (profiles) => S.restaurantAdmins(profiles);
 
 const rules = (creating) => {
   const { phone_number, first_name, last_name, password } = users.userRules;
@@ -35,7 +35,7 @@ exports.create = async (req, res) => {
   await assertRestaurant(restaurant);
   const user = await users.createUser({ ...userData, role: 'restaurant_admin' });
   const profile = await RestaurantAdmin.create({ user: user._id, restaurant });
-  res.status(201).json(S.restaurantAdmin(profile, user));
+  res.status(201).json((await serializeMany([profile]))[0]);
 };
 
 // GET /api/admins/{id}
@@ -53,8 +53,8 @@ exports.update = async (req, res) => {
     profile.restaurant = restaurant;
     await profile.save();
   }
-  const user = await users.updateUser(await User.findById(profile.user), userData);
-  res.json(S.restaurantAdmin(profile, user));
+  await users.updateUser(await User.findById(profile.user), userData);
+  res.json((await serializeMany([profile]))[0]);
 };
 
 // DELETE /api/admins/{id}

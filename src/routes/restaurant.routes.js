@@ -12,6 +12,8 @@ router.route('/')
   .get(restaurant.list)
   .post(superadminOnly, restaurant.create);
 
+router.get('/stats', superadminOnly, restaurant.stats);
+
 router.route('/:id')
   .get(restaurant.retrieve)
   .patch(restaurant.update)
