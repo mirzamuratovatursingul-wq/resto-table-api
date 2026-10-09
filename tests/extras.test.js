@@ -91,5 +91,46 @@ describe('Qo\'shimcha imkoniyatlar', () => {
     assert.equal(one.restaurant_name, 'Nukus Grill');
   });
 
+  it('dashboard statistikasi: stol, buyurtma, tushum, bron, ombor, stop-list; faqat o\'z restoran admini', async () => {
+    const st = (id, token, q = '') => call('GET', '/api/restaurants/' + id + '/stats' + q, { token });
+    const base = must(await st(W.R1.id, T().restaurant_admin), 200);
+    assert.equal(base.tables.total, 2);
+    assert.equal(base.tables.occupied + base.tables.free, 2);
+    assert.equal(base.reservations.pending >= 1, true);
+    assert.deepEqual(Object.keys(base).sort(), ['menu', 'orders', 'reservations', 'stock', 'tables']);
+
+    // yangi buyurtma: 2 ta choy (5000) -> yopilgach tushum +10000 (karta)
+    const o = must(await call('POST', '/api/restaurants/' + W.R1.id + '/orders', { token: T().waiter, body: { table: W.table2.id } }), 201);
+    must(await call('POST', '/api/orders/' + o.id + '/items', { token: T().waiter, body: { dish: W.dish.id, quantity: 2 } }), 201);
+    const open = must(await st(W.R1.id, T().restaurant_admin), 200);
+    assert.equal(open.orders.open_count, base.orders.open_count + 1);
+    assert.equal(Number(open.orders.open_total) - Number(base.orders.open_total), 10000);
+    must(await call('PATCH', '/api/orders/' + o.id, { token: T().waiter, body: { payment_method: 'card' } }), 200);
+    must(await call('PATCH', '/api/orders/' + o.id + '/status', { token: T().waiter, body: { status: 'closed' } }), 200);
+    const after = must(await st(W.R1.id, T().restaurant_admin), 200);
+    assert.equal(Number(after.orders.revenue_card) - Number(base.orders.revenue_card), 10000);
+    assert.equal(after.orders.closed_today_count, base.orders.closed_today_count + 1);
+    // kelajakdagi since -> bugungi tushum 0
+    const future = must(await st(W.R1.id, T().restaurant_admin, '?since=' + encodeURIComponent(new Date(Date.now() + 86400000).toISOString())), 200);
+    assert.equal(future.orders.closed_today_count, 0);
+    assert.equal(future.orders.revenue_today, '0.00');
+
+    // ombor va stop-list
+    const ing = must(await call('POST', '/api/restaurants/' + W.R1.id + '/ingredients', { token: T().storekeeper, body: { name: 'Tugagan', unit: 'kg' } }), 201);
+    must(await call('PATCH', '/api/dishes/' + W.dish.id + '/toggle-availability', { token: T().cook, body: { is_available: false } }), 200);
+    const s2 = must(await st(W.R1.id, T().restaurant_admin), 200);
+    assert.ok(s2.stock.out_names.includes('Tugagan') && s2.stock.out_count >= 1);
+    assert.equal(s2.menu.stop_count, 1);
+    assert.deepEqual(s2.menu.stop_names, ['Choy']);
+    assert.ok(ing.id);
+
+    // ruxsat va validatsiya
+    assert.equal((await st(W.R1.id, T().admin2)).status, 403);
+    assert.equal((await st(W.R1.id, T().waiter)).status, 403);
+    assert.equal((await st(W.R1.id, T().superadmin)).status, 403);
+    assert.equal((await st(W.R1.id, T().restaurant_admin, '?since=bad')).status, 400);
+    assert.equal((await st(W.R1.id, T().restaurant_admin, '?date=2026-13')).status, 400);
+  });
+
   const T = () => W.T;
 });

@@ -94,6 +94,13 @@
   const M = {};
   M.restaurant = { id: 1, name: 'Nukus Grill', address: 'Nukus, Amir Temur 5', phone: '+998901112233', is_active: true, start_time: '09:00:00', end_time: '23:00:00' };
   M.restaurantSA = { ...M.restaurant, admin: { id: 1, phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov' } };
+  M.dashboard = {
+    tables: { total: 12, occupied: 5, free: 7 },
+    orders: { open_count: 5, open_total: '640000.00', closed_today_count: 18, revenue_today: '4820000.00', revenue_cash: '1830000.00', revenue_card: '2990000.00' },
+    reservations: { pending: 2, today: 6 },
+    stock: { out_count: 1, low_count: 2, out_names: ['Lepyoshka'], low_names: ['Baranina', 'Guruch'] },
+    menu: { stop_count: 1, stop_names: ['Shashlik'] },
+  };
   M.me = { id: 2, phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov', email: null, role: 'restaurant_admin', restaurant: { id: 1, name: 'Nukus Grill' } };
   M.admin = { id: 1, restaurant: 1, restaurant_name: 'Nukus Grill', phone_number: '+998901000001', first_name: 'Admin', last_name: 'Adminov' };
   M.staff = { id: 1, restaurant: 1, role: 'waiter', is_active: true, phone_number: '+998901000002', first_name: 'Ofitsiant', last_name: 'Adminov' };
@@ -192,6 +199,8 @@
     E('restaurants', 'GET', '/api/restaurants/stats', 'Restoranlar soni (kartochkalar uchun)', ['superadmin'], 'Hamma restoranlar bo\'yicha sonlar: jami, faol, nofaol va admini yo\'qlar.', { res: { total: 4, active: 3, inactive: 1, without_admin: 1 } }),
     E('restaurants', 'POST', '/api/restaurants', 'Restoran yaratish', ['superadmin'], 'Yangi restoran. Keyin shu restoranga admin tayinlang (POST /api/admins).',
       { status: 201, body: [f('name', 'string', true, 'Nomi (≤100)', 'Nukus Grill'), f('address', 'string', true, 'Manzil (≤150)', 'Nukus, Amir Temur 5'), f('phone', 'string', true, 'Telefon (≤13)', '+998901112233'), f('start_time', 'time', true, 'Ochilish vaqti HH:MM', '09:00'), f('end_time', 'time', true, 'Yopilish vaqti HH:MM', '23:00'), f('is_active', 'boolean', false, 'Faolmi (boshlang\'ich: true)', true)], res: M.restaurant }),
+    E('restaurants', 'GET', '/api/restaurants/{id}/stats', 'Dashboard statistikasi (restoran admini)', ADM, 'Admin bosh sahifasidagi hamma kartochkalar bitta so\'rovda: stollar, ochiq buyurtmalar va bugungi tushum (naqd/karta), bronlar, omborda tugayotgan ingredientlar va stop-list.',
+      { params: [idp('id', 'Restoran id'), q('since', 'Bugun boshlanishi (ISO sana-vaqt, mijoz vaqt mintaqasida). Berilmasa server kuni boshi', ''), q('date', 'Bugungi bronlar sanasi YYYY-MM-DD. Berilmasa server sanasi', '')], res: M.dashboard, tip: 'Tushum faqat bugun (since dan keyin) yopilgan buyurtmalar bo\'yicha. Ingredient "tugayapti" deb min_stock > 0 bo\'lib, qoldiq undan kam bo\'lganda hisoblanadi.' }),
     E('restaurants', 'GET', '/api/restaurants/{id}', 'Bitta restoran', ANY, 'Restoran ma\'lumotlari.', { params: [idp('id', 'Restoran id')], res: M.restaurant }),
     E('restaurants', 'PATCH', '/api/restaurants/{id}', 'Restoranni tahrirlash', PLATFORM, 'Restoran admini faqat o\'z restoranini tahrirlaydi.',
       { params: [idp('id', 'Restoran id')], body: [f('name', 'string', false, 'Nomi', 'Yangi nom'), f('address', 'string', false, 'Manzil'), f('phone', 'string', false, 'Telefon'), f('start_time', 'time', false, 'Ochilish'), f('end_time', 'time', false, 'Yopilish'), f('is_active', 'boolean', false, 'Faolmi')], res: M.restaurant }),
@@ -222,7 +231,7 @@
       { status: 201, params: [idp('id', 'Restoran id')], body: [f('seats', 'integer', true, 'O\'rin soni', 4), f('number', 'integer', false, 'Stol raqami (ixtiyoriy)')], res: M.table }),
     E('tables', 'GET', '/api/tables/{id}', 'Bitta stol', ANY, '', { params: [idp('id', 'Stol id')], res: M.table }),
     E('tables', 'PATCH', '/api/tables/{id}', 'Stolni tahrirlash', ADM, '', { params: [idp('id', 'Stol id')], body: [f('seats', 'integer', false, 'O\'rin soni', 6), f('number', 'integer', false, 'Raqam')], res: { ...M.table, seats: 6 } }),
-    E('tables', 'DELETE', '/api/tables/{id}', 'Stolni o\'chirish', ADM, 'Stolning bronlari o\'chadi; buyurtmalari saqlanadi (stolsiz qoladi).', { params: [idp('id', 'Stol id')], status: 204 }),
+    E('tables', 'DELETE', '/api/tables/{id}', 'Stolni o\'chirish', ADM, 'Faol (kutilayotgan yoki tasdiqlangan) broni bor stolni o\'chirib bo\'lmaydi: 400 (code: table_reserved) — avval bron bekor qilinadi yoki yopiladi. O\'chirilganda stolning eski bronlari o\'chadi, buyurtmalari saqlanadi (stolsiz qoladi).', { params: [idp('id', 'Stol id')], status: 204 }),
 
     /* ================= MENYU ================= */
     E('menu', 'GET', '/api/restaurants/{id}/menu', 'To\'liq menyu (bitta so\'rovda)', ANY, 'Kategoriyalar ichida taomlar. Mijoz va ofitsiantning menyu sahifasi uchun eng qulayi.', { params: [idp('id', 'Restoran id')], res: M.menu, tip: 'is_available: false bo\'lgan taomni "tugagan" deb ko\'rsating, uni buyurtmaga qo\'shib bo\'lmaydi.' }),

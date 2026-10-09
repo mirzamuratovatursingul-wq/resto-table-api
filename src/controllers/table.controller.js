@@ -1,4 +1,4 @@
-const { Restaurant, Table } = require('../models');
+const { Restaurant, Table, Reservation } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { parseBody, int, choice } = require('../utils/fields');
 const { findOr404, parseId } = require('../utils/ids');
@@ -73,6 +73,10 @@ exports.update = async (req, res) => {
 exports.destroy = async (req, res) => {
   const table = await findOr404(Table, req.params.id);
   assertAccess(req, table.restaurant, ADMIN);
+  // Faol (kutilayotgan yoki tasdiqlangan) broni bor stolni o'chirib bo'lmaydi: avval bron bekor qilinadi yoki yopiladi
+  if (await Reservation.exists({ table: table._id, status: { $in: ['pending', 'confirmed'] } })) {
+    throw new ApiError(400, 'Invalid', { detail: "Bu stol bron qilingan. Avval bronni bekor qiling yoki yoping, keyin stolni o'chiring.", code: 'table_reserved' });
+  }
   await removeTable(table);
   res.status(204).end();
 };

@@ -400,6 +400,13 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
     it('stol o\'chirilsa: buyurtma qoladi (stolsiz), bronlari o\'chadi', async () => {
       const t = await newTable(); const o = await newOrder(t.id);
       const rs = must(await call('POST', `/api/restaurants/${R}/reservations`, { token: T.customer, body: { table: t.id, reservation_date: require('./helpers').futureDate(20), reservation_time: '10:00' } }), 201);
+      const blocked = await adm('DELETE', `/api/tables/${t.id}`);
+      assert.equal(blocked.status, 400);
+      assert.equal(blocked.body.code, 'table_reserved');
+      assert.equal((await adm('GET', `/api/tables/${t.id}`)).status, 200, 'stol joyida');
+      must(await adm('PATCH', `/api/reservations/${rs.id}/status`, { status: 'confirmed' }), 200);
+      assert.equal((await adm('DELETE', `/api/tables/${t.id}`)).status, 400, 'tasdiqlangan bron ham tosadi');
+      must(await call('PATCH', `/api/reservations/${rs.id}/cancel`, { token: T.customer }), 200);
       assert.equal((await adm('DELETE', `/api/tables/${t.id}`)).status, 204);
       const got = (await wtr('GET', `/api/orders/${o.id}`)).body;
       assert.equal(got.table, null);
