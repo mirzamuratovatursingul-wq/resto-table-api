@@ -132,5 +132,25 @@ describe('Qo\'shimcha imkoniyatlar', () => {
     assert.equal((await st(W.R1.id, T().restaurant_admin, '?date=2026-13')).status, 400);
   });
 
+  it('stollar: status (free/occupied/reserved), waiter va page_size filtrlari serverda', async () => {
+    const base = `/api/restaurants/${W.R1.id}/tables`;
+    const ids = async (qs) => must(await call('GET', `${base}?${qs}`, { token: T().waiter }), 200).results.map((t) => t.id);
+    const day = `date=${W.reservation.reservation_date}&time=00:00`;
+    assert.deepEqual(await ids('status=occupied'), [W.table1.id]);
+    assert.ok((await ids(`status=reserved&${day}`)).includes(W.table2.id));
+    assert.deepEqual(await ids('status=reserved&date=2000-01-01&time=00:00'), []);
+    const free = await ids(`status=free&${day}`);
+    assert.ok(!free.includes(W.table1.id) && !free.includes(W.table2.id));
+    assert.deepEqual(await ids('waiter=me'), [W.table1.id]);
+    assert.deepEqual(await ids('status=occupied&waiter=me'), [W.table1.id]);
+    assert.deepEqual(await ids('status=free&waiter=me'), []);
+    const one = must(await call('GET', `${base}?page_size=1`, { token: T().waiter }), 200);
+    assert.equal(one.results.length, 1);
+    assert.ok(one.count >= 2 && one.next);
+    for (const bad of ['status=x', 'waiter=abc', 'page_size=0', 'page_size=101', 'status=free&date=2026-13', 'status=free&time=25:00']) {
+      assert.equal((await call('GET', `${base}?${bad}`, { token: T().waiter })).status, 400, bad);
+    }
+  });
+
   const T = () => W.T;
 });

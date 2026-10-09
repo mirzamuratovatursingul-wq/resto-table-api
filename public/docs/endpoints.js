@@ -226,7 +226,7 @@
     E('staff', 'DELETE', '/api/staff/{id}', 'Xodimni o\'chirish', ADM, '', { params: [idp('id', 'Xodim id')], status: 204 }),
 
     /* ================= STOLLAR ================= */
-    E('tables', 'GET', '/api/restaurants/{id}/tables', 'Stollar ro\'yxati', ANY, 'Ofitsiantning "stollar xaritasi" shu yerdan chiziladi: status free / occupied.', { params: [idp('id', 'Restoran id'), q('page', 'Sahifa', 1)], res: page(M.table) }),
+    E('tables', 'GET', '/api/restaurants/{id}/tables', 'Stollar ro\'yxati', ANY, 'Ofitsiantning "stollar xaritasi" shu yerdan chiziladi. Filtrlar: status=free (bo‘sh va bron yo‘q), occupied (band), reserved (faol broni bor, band bo‘lsa ham); waiter=me yoki ofitsiant id (uning ochiq buyurtmasi bor stollar). Bron tekshiruvi date (YYYY-MM-DD) va time (HH:MM) bo‘yicha, berilmasa server vaqti. page_size — sahifadagi elementlar soni (1–100, standart 10).', { params: [idp('id', 'Restoran id'), q('status', 'free | occupied | reserved', 'free'), q('waiter', 'me yoki ofitsiant id', 'me'), q('date', 'Bron sanasi', '2026-10-09'), q('time', 'Bron vaqti', '18:30'), q('page', 'Sahifa', 1), q('page_size', 'Sahifadagi soni (1–100)', 18)], res: page(M.table) }),
     E('tables', 'POST', '/api/restaurants/{id}/tables', 'Stol qo\'shish', ADM, 'number berilmasa, keyingi bo\'sh raqam o\'zi beriladi. Bir restoranda raqam takrorlanmaydi.',
       { status: 201, params: [idp('id', 'Restoran id')], body: [f('seats', 'integer', true, 'O\'rin soni', 4), f('number', 'integer', false, 'Stol raqami (ixtiyoriy)')], res: M.table }),
     E('tables', 'GET', '/api/tables/{id}', 'Bitta stol', ANY, '', { params: [idp('id', 'Stol id')], res: M.table }),

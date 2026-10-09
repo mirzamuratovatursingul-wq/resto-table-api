@@ -1,11 +1,19 @@
 const ApiError = require('./ApiError');
-const { pageSize } = require('../config/env');
+const { pageSize: defaultSize } = require('../config/env');
+
+const MAX_PAGE_SIZE = 100;
 
 // DRF PageNumberPagination: { count, next, previous, results }
 // serialize: async (docs[]) => object[]
 module.exports = async function paginate(req, Model, filter, { sort = { _id: 1 }, serialize }) {
   const page = req.query.page === undefined ? 1 : Number(req.query.page);
   if (!Number.isInteger(page) || page < 1) throw new ApiError(404, "Noto'g'ri sahifa raqami.");
+
+  let pageSize = defaultSize;
+  if (req.query.page_size !== undefined) {
+    pageSize = Number(req.query.page_size);
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > MAX_PAGE_SIZE) throw new ApiError(400, 'Invalid', { page_size: [`page_size 1 dan ${MAX_PAGE_SIZE} gacha butun son bo'lishi kerak.`] });
+  }
 
   const count = await Model.countDocuments(filter);
   const pages = Math.max(1, Math.ceil(count / pageSize));
