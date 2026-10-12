@@ -52,7 +52,7 @@ yaratiladi (keyin o'chirsangiz qayta paydo bo'lmaydi) va production da yaratilma
 | `JWT_REFRESH_SECRET` | boshqa uzun tasodifiy qator (access dan farqli) |
 | `SUPERADMIN_PHONE` | masalan `+998901234567` |
 | `SUPERADMIN_PASSWORD` | kuchli parol (kamida 8 belgi) |
-| `CORS_ORIGIN` | frontend manzili, masalan `https://mening-saytim.up.railway.app` |
+| `CORS_ORIGIN` | frontend manzili (bir nechta bo'lsa vergul bilan), masalan `https://mening-saytim.vercel.app`. `http://localhost:3000` har doim ruxsat etilgan |
 
 `PORT` ni Railway o'zi beradi. Proxy orqasida haqiqiy IP uchun `TRUST_PROXY` Railway da avtomatik yoqiladi.
 Birinchi ishga tushishda superadmin bazada o'zi yaratiladi. Production da `/docs` va boshlang'ich akkauntlar yo'q:

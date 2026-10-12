@@ -2,12 +2,21 @@ require('dotenv').config({ quiet: true });
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 
+// CORS_ORIGIN: vergul bilan ajratilgan manzillar ("https://app.vercel.app,http://localhost:3000") yoki "*".
+// Lokal frontend (localhost:3000) har doim ruxsat etiladi, shuning uchun uni alohida yozish shart emas.
+const LOCAL_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+const parseOrigins = (raw) => {
+  if (!raw || raw.trim() === '*') return '*';
+  const list = raw.split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean);
+  return [...new Set([...list, ...LOCAL_ORIGINS])];
+};
+
 const config = {
   nodeEnv,
   port: Number(process.env.PORT) || 5000,
   // MONGO_URI; Railway Mongo plagini MONGO_URL, Atlas odatda MONGODB_URI beradi: uchalasi qabul qilinadi
   mongoUri: process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/resto-table',
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  corsOrigin: parseOrigins(process.env.CORS_ORIGIN),
   pageSize: Number(process.env.PAGE_SIZE) || 10,
   // /docs faqat test rejimida ochiq (production da o'chiq). DOCS_ENABLED=false bilan o'chirish mumkin.
   docsEnabled: nodeEnv !== 'production' && process.env.DOCS_ENABLED !== 'false',
