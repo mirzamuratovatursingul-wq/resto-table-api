@@ -241,6 +241,39 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
     });
   });
 
+  describe('taom bilan birga retsept (recipe_items) — bitta so\'rov', () => {
+    const create = (body) => adm('POST', `/api/categories/${W.category.id}/dishes`, { name: `Taom ${Math.random().toString(36).slice(2, 7)}`, price: '1000', ...body });
+    it('yaratishda retsept ham saqlanadi', async () => {
+      const a = await newIng('1'); const b = await newIng('1');
+      const d = must(await create({ recipe_items: [{ ingredient: a.id, quantity_per_serving: '150', unit: 'gr' }, { ingredient: b.id, quantity_per_serving: '2', unit: 'kg' }] }), 201);
+      assert.equal(d.recipe_items.length, 2);
+      const list = (await adm('GET', `/api/dishes/${d.id}/recipe-items`)).body;
+      assert.deepEqual(list.map((r) => r.ingredient).sort(), [a.id, b.id].sort());
+    });
+    it('xato qatorda taom umuman yaratilmaydi', async () => {
+      const kg = await newIng('1');
+      const name = `Yarim ${Math.random().toString(36).slice(2, 7)}`;
+      const dup = await create({ name, recipe_items: [{ ingredient: kg.id, quantity_per_serving: '1', unit: 'gr' }, { ingredient: kg.id, quantity_per_serving: '2', unit: 'gr' }] });
+      assert.equal(dup.status, 400);
+      assert.ok(JSON.stringify(dup.body).includes('recipe_items'));
+      const bad = await create({ name, recipe_items: [{ ingredient: kg.id, quantity_per_serving: '1', unit: 'ml' }] });
+      assert.equal(bad.status, 400);
+      const menu = (await adm('GET', `/api/restaurants/${R}/menu`)).body;
+      assert.ok(!menu.some((c) => c.dishes.some((x) => x.name === name)));
+    });
+    it('PATCH da recipe_items retseptni to\'liq almashtiradi, berilmasa tegmaydi', async () => {
+      const a = await newIng('1'); const b = await newIng('1');
+      const d = must(await create({ recipe_items: [{ ingredient: a.id, quantity_per_serving: '5', unit: 'gr' }] }), 201);
+      must(await adm('PATCH', `/api/dishes/${d.id}`, { price: '2000' }), 200);
+      assert.equal((await adm('GET', `/api/dishes/${d.id}/recipe-items`)).body.length, 1);
+      must(await adm('PATCH', `/api/dishes/${d.id}`, { recipe_items: [{ ingredient: b.id, quantity_per_serving: '7', unit: 'gr' }] }), 200);
+      const list = (await adm('GET', `/api/dishes/${d.id}/recipe-items`)).body;
+      assert.equal(list.length, 1); assert.equal(list[0].ingredient, b.id);
+      must(await adm('PATCH', `/api/dishes/${d.id}`, { recipe_items: [] }), 200);
+      assert.equal((await adm('GET', `/api/dishes/${d.id}/recipe-items`)).body.length, 0);
+    });
+  });
+
   describe('ombor: retsept bo\'yicha yechish, kirim va chiqim', () => {
     it('cooking da retsept bo\'yicha aniq miqdor yechiladi (5 gr x 3 = 0.015 kg), tarixga out yoziladi', async () => {
       const ing = await newIng('1'); const d = await newDish();

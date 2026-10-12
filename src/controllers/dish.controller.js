@@ -37,6 +37,38 @@ const checkUnit = async (ingredientId, unit) => {
   }
 };
 
+const messages = (e) => Object.values(e.details || {}).flat().join(' ');
+
+// Taom bilan birga keladigan retsept: "recipe_items": [{ ingredient, quantity_per_serving, unit }].
+// Hammasi saqlashdan OLDIN tekshiriladi, shuning uchun yarim saqlangan taom qolmaydi.
+const parseRecipeItems = async (raw, restaurant) => {
+  if (!Array.isArray(raw)) throw new ApiError(400, 'Invalid', { recipe_items: ["Ro'yxat bo'lishi kerak."] });
+  if (raw.length > 100) throw new ApiError(400, 'Invalid', { recipe_items: ["Ko'pi bilan 100 ta ingredient."] });
+  const items = [];
+  const seen = new Set();
+  for (const [i, row] of raw.entries()) {
+    const at = (msg) => new ApiError(400, 'Invalid', { recipe_items: [`${i + 1}-qator: ${msg}`] });
+    let data;
+    try {
+      data = parseBody(row, { ...recipeRules, ingredient: int({ required: true, min: 1 }) });
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      throw at(messages(e) || "noto'g'ri qiymat.");
+    }
+    if (seen.has(data.ingredient)) throw at('bu ingredient ikki marta kiritilgan.');
+    seen.add(data.ingredient);
+    try {
+      await checkIngredient(data.ingredient, restaurant);
+      await checkUnit(data.ingredient, data.unit || 'none');
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      throw at(messages(e));
+    }
+    items.push(data);
+  }
+  return items;
+};
+
 // GET /api/categories/{id}/dishes/
 exports.listByCategory = async (req, res) => {
   const category = await findOr404(Category, req.params.id);
@@ -47,20 +79,34 @@ exports.listByCategory = async (req, res) => {
 exports.create = async (req, res) => {
   const category = await findOr404(Category, req.params.id);
   assertAccess(req, category.restaurant, ADMIN);
-  const dish = await Dish.create({ ...parseBody(req.body, rules), category: category._id, restaurant: category.restaurant });
-  res.status(201).json(S.dish(dish));
+  const data = parseBody(req.body, rules);
+  const items = req.body?.recipe_items === undefined ? [] : await parseRecipeItems(req.body?.recipe_items, category.restaurant);
+  const dish = await Dish.create({ ...data, category: category._id, restaurant: category.restaurant });
+  try {
+    if (items.length) await RecipeItem.insertMany(items.map((it) => ({ ...it, dish: dish._id })));
+  } catch (e) {
+    await dish.deleteOne();
+    throw e;
+  }
+  res.status(201).json(await S.dishDetail(dish));
 };
 
 exports.retrieve = async (req, res) => {
   res.json(await S.dishDetail(await findOr404(Dish, req.params.id)));
 };
 
-// PATCH /api/dishes/{id}/   (recipe_items bu yerda o'qiladi, boshqarilmaydi: /recipe-items endpointlari bor)
+// PATCH /api/dishes/{id}/   (recipe_items yuborilsa retsept to'liq almashtiriladi, yuborilmasa o'zgarmaydi;
+// alohida qatorlar uchun /recipe-items endpointlari ham bor)
 exports.update = async (req, res) => {
   const dish = await findOr404(Dish, req.params.id);
   assertAccess(req, dish.restaurant, ADMIN);
   dish.set(parseBody(req.body, rules, { partial: true }));
+  const items = req.body?.recipe_items === undefined ? null : await parseRecipeItems(req.body?.recipe_items, dish.restaurant);
   await dish.save();
+  if (items) {
+    await RecipeItem.deleteMany({ dish: dish._id });
+    if (items.length) await RecipeItem.insertMany(items.map((it) => ({ ...it, dish: dish._id })));
+  }
   res.json(await S.dishDetail(dish));
 };
 
