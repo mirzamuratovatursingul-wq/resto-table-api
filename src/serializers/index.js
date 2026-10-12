@@ -209,6 +209,7 @@ exports.kdsItems = async (items) => {
       waiter_name: order && waiters.get(order.waiter)
         ? `${waiters.get(order.waiter).first_name} ${waiters.get(order.waiter).last_name}`.trim()
         : '',
+      sent_at: new Date(since).toISOString(),
       waiting_time_minutes: Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 60000)),
     };
   });

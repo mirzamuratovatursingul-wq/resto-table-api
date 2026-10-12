@@ -114,7 +114,7 @@
   M.stockTx = { id: 1, type: 'in', quantity: '5.000', reason: 'Kirim', created_at: '2026-10-08T10:00:00.000Z', ingredient: 1 };
   M.orderItem = { id: 1, order: 1, dish: 'Choy', dish_price: '5000.00', quantity: 2, status: 'new', note: null, total_price: '10000.00' };
   M.order = { id: 1, restaurant: 1, waiter: 3, waiter_name: 'Bobur Aliyev', table: 1, table_number: 1, status: 'open', payment_method: 'unset', created_at: '2026-10-09T10:00:00.000Z', closed_at: null, order_items: [M.orderItem], total_order_price: '10000.00' };
-  M.kds = { id: 1, order: 1, table_number: '1', dish_name: 'Choy', quantity: 2, status: 'sent', waiter_name: 'Bobur Aliyev', waiting_time_minutes: 3 };
+  M.kds = { id: 1, order: 1, table_number: '1', dish_name: 'Choy', quantity: 2, status: 'sent', waiter_name: 'Bobur Aliyev', sent_at: '2026-01-01T10:00:00.000Z', waiting_time_minutes: 3 };
   M.reservation = { id: 1, restaurant: { id: 1, name: 'Nukus Grill' }, table: { id: 1, restaurant: 1, number: 1 }, client: { phone_number: '+998901000005', first_name: 'Aziz', last_name: 'Karimov' }, guests_count: 2, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
   M.myReservation = { id: 1, restaurant: { id: 1, name: 'Nukus Grill' }, table: { id: 1, restaurant: 1, number: 1 }, guests_count: 2, reservation_date: '2026-12-01', reservation_time: '18:00:00', duration_hours: '2.0', status: 'pending' };
   const page = (item) => ({ count: 1, next: null, previous: null, results: [item] });

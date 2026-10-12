@@ -188,9 +188,17 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
       await wtr('POST', `/api/orders/${o.id}/send-to-kitchen`);
       return { o, i, d };
     };
+    it('yopilgan buyurtmaning taomlari oshxona navbatida qolmaydi', async () => {
+      const x = await sentItem();
+      assert.ok((await cook('GET', '/api/kitchen/items')).body.results.some((r) => r.id === x.i.id));
+      must(await adm('PATCH', `/api/orders/${x.o.id}/status`, { status: 'closed' }), 200);
+      assert.ok(!(await cook('GET', '/api/kitchen/items')).body.results.some((r) => r.id === x.i.id));
+    });
     it('navbatda faqat sent va cooking, eng eskisi birinchi; ready chiqib ketadi', async () => {
       const a = await sentItem(); const b = await sentItem();
       let q = (await cook('GET', '/api/kitchen/items?page=1')).body;
+      const first = q.results.find((x) => x.id === a.i.id);
+      assert.ok(!Number.isNaN(Date.parse(first.sent_at)), 'sent_at ISO sana bolishi kerak');
       const ids = q.results.map((x) => x.id);
       assert.ok(ids.indexOf(a.i.id) < ids.indexOf(b.i.id));
       must(await cook('PATCH', `/api/kitchen/items/${a.i.id}/status`, { status: 'ready' }), 200);
@@ -270,9 +278,30 @@ describe('Biznes mantiq: stol, buyurtma, oshxona, ombor', () => {
       assert.equal(await stock(kg.id), 4.999);
       assert.equal(await stock(l.id), 7.5);
     });
-    it('birlik mos kelmasa (kg ingredientga ml) 400 va hech narsa yechilmaydi', async () => {
+    it('ingredient nomi restoran ichida takrorlanmaydi (katta-kichik harf farqsiz)', async () => {
+      const name = `Unik ${Math.random().toString(36).slice(2, 7)}`;
+      must(await stk('POST', `/api/restaurants/${R}/ingredients`, { name, unit: 'kg' }), 201);
+      const dup = await stk('POST', `/api/restaurants/${R}/ingredients`, { name: name.toUpperCase(), unit: 'l' });
+      assert.equal(dup.status, 400); assert.ok(dup.body.name);
+      const other = await newIng('1');
+      assert.equal((await stk('PATCH', `/api/ingredients/${other.id}`, { name })).status, 400);
+      assert.equal((await stk('PATCH', `/api/ingredients/${other.id}`, { name: other.name })).status, 200);
+    });
+    it('retsept saqlanayotganda birlik mos kelmasa (kg ingredientga ml / l) 400', async () => {
+      const kg = await newIng('5'); const l = await newIng('5', 'l'); const d = await newDish();
+      const r1 = await adm('POST', `/api/dishes/${d.id}/recipe-items`, { ingredient: kg.id, quantity_per_serving: '100', unit: 'l' });
+      assert.equal(r1.status, 400); assert.ok(r1.body.unit);
+      assert.equal((await adm('POST', `/api/dishes/${d.id}/recipe-items`, { ingredient: l.id, quantity_per_serving: '1', unit: 'kg' })).status, 400);
+      const ok = must(await adm('POST', `/api/dishes/${d.id}/recipe-items`, { ingredient: kg.id, quantity_per_serving: '100', unit: 'gr' }), 201);
+      assert.equal((await adm('PATCH', `/api/recipe-items/${ok.id}`, { unit: 'ml' })).status, 400);
+      assert.equal((await adm('PATCH', `/api/recipe-items/${ok.id}`, { unit: 'mg' })).status, 200);
+      // ingredient birligini o'zgartirish retsept bilan ziddiyatga olib kelmasligi kerak
+      assert.equal((await stk('PATCH', `/api/ingredients/${kg.id}`, { unit: 'l' })).status, 400);
+      assert.equal((await stk('PATCH', `/api/ingredients/${l.id}`, { unit: 'kg' })).status, 200);
+    });
+    it("eski notogri retsept (bazada qolgan) bolsa ham cooking 400 beradi va hech narsa yechilmaydi", async () => {
       const ing = await newIng('5'); const d = await newDish();
-      await adm('POST', `/api/dishes/${d.id}/recipe-items`, { ingredient: ing.id, quantity_per_serving: '100', unit: 'ml' });
+      await require('../src/models').RecipeItem.create({ dish: d.id, ingredient: ing.id, quantity_per_serving: 100, unit: 'ml' });
       const o = await newOrder(); const i = await addItem(o.id, d.id, 1);
       await wtr('POST', `/api/orders/${o.id}/send-to-kitchen`);
       assert.equal((await cook('PATCH', `/api/kitchen/items/${i.id}/status`, { status: 'cooking' })).status, 400);

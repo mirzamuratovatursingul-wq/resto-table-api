@@ -1,4 +1,4 @@
-const { OrderItem } = require('../models');
+const { Order, OrderItem } = require('../models');
 const ApiError = require('../utils/ApiError');
 const { parseBody, choice } = require('../utils/fields');
 const { findOr404 } = require('../utils/ids');
@@ -10,8 +10,10 @@ const S = require('../serializers');
 const KITCHEN = ['restaurant_admin', 'cook'];
 
 // GET /api/kitchen/items  - faqat oshxonaga yuborilgan, hali tayyor bo'lmagan taomlar
+// (yopilgan buyurtmalarning taomlari navbatda qolib ketmaydi)
 exports.list = async (req, res) => {
-  const filter = { status: { $in: ['sent', 'cooking'] }, restaurant: req.restaurantId };
+  const openOrders = await Order.find({ restaurant: req.restaurantId, status: 'open' }).distinct('_id');
+  const filter = { status: { $in: ['sent', 'cooking'] }, restaurant: req.restaurantId, order: { $in: openOrders } };
   res.json(await paginate(req, OrderItem, filter, { sort: { sent_at: 1, _id: 1 }, serialize: S.kdsItems }));
 };
 

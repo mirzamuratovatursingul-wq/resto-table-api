@@ -25,6 +25,18 @@ const recipeRules = {
   unit: choice(['kg', 'gr', 'mg', 'l', 'ml', 'none']),
 };
 
+// Retsept birligi qaysi bazaviy birlikka tegishli (stock.service dagi UNITS bilan bir xil)
+const UNIT_BASE = { kg: 'kg', gr: 'kg', mg: 'kg', l: 'l', ml: 'l' };
+
+// Saqlash paytida tekshiriladi: aks holda xato faqat tayyorlash boshlanganda, oshxonada chiqadi
+const checkUnit = async (ingredientId, unit) => {
+  if (!ingredientId || !UNIT_BASE[unit]) return;
+  const ingredient = await Ingredient.findById(ingredientId);
+  if (ingredient && UNIT_BASE[unit] !== ingredient.unit) {
+    throw new ApiError(400, 'Invalid', { unit: [`"${unit}" birligi "${ingredient.name}" ingredientiga (${ingredient.unit}) mos emas.`] });
+  }
+};
+
 // GET /api/categories/{id}/dishes/
 exports.listByCategory = async (req, res) => {
   const category = await findOr404(Category, req.params.id);
@@ -83,6 +95,7 @@ exports.createRecipe = async (req, res) => {
   assertAccess(req, dish.restaurant, ADMIN);
   const data = parseBody(req.body, recipeRules);
   await checkIngredient(data.ingredient, dish.restaurant);
+  await checkUnit(data.ingredient, data.unit);
   res.status(201).json(S.recipeItem(await RecipeItem.create({ ...data, dish: dish._id })));
 };
 
@@ -100,6 +113,7 @@ exports.updateRecipe = async (req, res) => {
   assertAccess(req, dish.restaurant, ADMIN);
   const data = parseBody(req.body, recipeRules, { partial: true });
   await checkIngredient(data.ingredient, dish.restaurant);
+  await checkUnit(data.ingredient === undefined ? item.ingredient : data.ingredient, data.unit === undefined ? item.unit : data.unit);
   item.set(data);
   await item.save();
   res.json(S.recipeItem(item));

@@ -19,6 +19,16 @@ const rules = {
 };
 const quantityRule = decimal({ required: true, digits: 10, places: 3, min: 0.001 });
 
+// Bir restoranda bir xil nomli ingredient bo'lmasin (katta-kichik harf farqsiz; regex ishlatilmaydi)
+const assertUniqueName = async (restaurant, name, exceptId) => {
+  if (!name) return;
+  const filter = { restaurant, name: name.trim() };
+  if (exceptId) filter._id = { $ne: exceptId };
+  if (await Ingredient.findOne(filter).collation({ locale: 'en', strength: 2 }).select('_id')) {
+    throw new ApiError(400, 'Invalid', { name: ['Bunday nomli ingredient allaqachon bor.'] });
+  }
+};
+
 const log = (ingredient, type, quantity, reason) => StockTransaction.create({
   restaurant: ingredient.restaurant, ingredient: ingredient._id, type, quantity, reason,
 });
@@ -36,7 +46,9 @@ exports.create = async (req, res) => {
   const restaurant = parseId(req.params.id);
   await findOr404(Restaurant, restaurant);
   assertAccess(req, restaurant, STOCK);
-  const ingredient = await Ingredient.create({ ...parseBody(req.body, rules), restaurant });
+  const data = parseBody(req.body, rules);
+  await assertUniqueName(restaurant, data.name);
+  const ingredient = await Ingredient.create({ ...data, restaurant });
   if (ingredient.current_stock > 0) await log(ingredient, 'in', ingredient.current_stock, 'Boshlang\'ich qoldiq');
   res.status(201).json(S.ingredient(ingredient));
 };
@@ -52,7 +64,16 @@ exports.retrieve = async (req, res) => {
 exports.update = async (req, res) => {
   const ingredient = await findOr404(Ingredient, req.params.id);
   assertAccess(req, ingredient.restaurant, STOCK);
-  ingredient.set(parseBody(req.body, { name: rules.name, unit: rules.unit, min_stock: rules.min_stock }, { partial: true }));
+  const data = parseBody(req.body, { name: rules.name, unit: rules.unit, min_stock: rules.min_stock }, { partial: true });
+  await assertUniqueName(ingredient.restaurant, data.name, ingredient._id);
+  if (data.unit && data.unit !== ingredient.unit) {
+    // Birlik o'zgarsa, retseptlarda mos kelmaydigan birlik qolib ketmasligi kerak
+    const wrong = data.unit === 'kg' ? ['l', 'ml'] : ['kg', 'gr', 'mg'];
+    if (await RecipeItem.exists({ ingredient: ingredient._id, unit: { $in: wrong } })) {
+      throw new ApiError(400, 'Invalid', { unit: ["Bu ingredient retseptlarda boshqa birlikda ishlatilgan. Avval retseptlarni o'zgartiring."] });
+    }
+  }
+  ingredient.set(data);
   await ingredient.save();
   res.json(S.ingredient(ingredient));
 };

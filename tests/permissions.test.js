@@ -172,7 +172,7 @@ async function buildFreshR1Resources(srv, W) {
   const table = ok(await a('POST', `/api/restaurants/${W.R1.id}/tables`, { seats: 4 }), 201);
   const category = ok(await a('POST', `/api/restaurants/${W.R1.id}/categories`, { name: 'Fresh', order_index: '7' }), 201);
   const dish = ok(await a('POST', `/api/categories/${category.id}/dishes`, { name: 'FreshDish', price: '1000' }), 201);
-  const ingredient = ok(await srv.call('POST', `/api/restaurants/${W.R1.id}/ingredients`, { token: W.T.storekeeper, body: { name: 'FreshIng', unit: 'kg', current_stock: '10' } }), 201);
+  const ingredient = ok(await srv.call('POST', `/api/restaurants/${W.R1.id}/ingredients`, { token: W.T.storekeeper, body: { name: `FreshIng ${Math.random().toString(36).slice(2, 8)}`, unit: 'kg', current_stock: '10' } }), 201);
   const order = ok(await srv.call('POST', `/api/restaurants/${W.R1.id}/orders`, { token: W.T.restaurant_admin, body: { table: table.id } }), 201);
   const item = ok(await srv.call('POST', `/api/orders/${order.id}/items`, { token: W.T.restaurant_admin, body: { dish: dish.id, quantity: 1 } }), 201);
   return { table, category, dish, ingredient, order, item };
