@@ -32,6 +32,7 @@ router.route('/:id/staff').get(staff.listByRestaurant).post(staff.create);
 
 // Bron (mijoz)
 router.get('/:id/available-tables', restrictStrict('customer'), reservation.availableTables);
+router.get('/:id/table-schedule', restrictStrict('customer'), reservation.tableSchedule);
 router.post('/:id/reservations', restrictStrict('customer'), reservation.create);
 
 module.exports = router;

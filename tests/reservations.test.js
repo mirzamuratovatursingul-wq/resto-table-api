@@ -168,6 +168,48 @@ describe('Bronlar', () => {
       await cust('PATCH', `/api/reservations/${b.id}/cancel`);
       assert.ok((await q()).body.map((x) => x.id).includes(big.id), 'bekordan keyin yana bo\'sh');
     });
+    it('yarim tunda yopiladigan restoran (09:00–00:00): 23:00 ga 1 soat va 22:00 ga 2 soat bron qilinadi, 23:30 ga 1 soat yo\'q', async () => {
+      const su = (m, u, b) => call(m, u, { token: T.superadmin, body: b });
+      const N = must(await su('POST', '/api/restaurants', { name: 'Tungi', address: 'Nukus', phone: '+998901119900', start_time: '09:00', end_time: '00:00' }), 201);
+      const tok = await adminToken(call, T.superadmin, N.id, '+998911009900');
+      const t = must(await call('POST', `/api/restaurants/${N.id}/tables`, { token: tok, body: { seats: 4 } }), 201);
+      const d = day();
+      const at = (time, dur) => cust('POST', `/api/restaurants/${N.id}/reservations`, { table: t.id, reservation_date: d, reservation_time: time, duration_hours: dur });
+      assert.equal((await at('09:00', '1')).status, 201);
+      assert.equal((await at('23:00', '1')).status, 201);
+      assert.equal((await at('20:00', '2')).status, 201);
+      assert.equal((await at('23:30', '1')).status, 400, 'yopilishdan keyin tugaydi');
+      assert.equal((await at('08:30', '1')).status, 400, 'ochilishdan oldin');
+      const av = await cust('GET', `/api/restaurants/${N.id}/available-tables?reservation_date=${d}&reservation_time=22:00&duration_hours=1`);
+      assert.equal(av.status, 200);
+    });
+    it('tunda yopiladigan restoran (18:00–02:00): 23:30 ga 2 soat mumkin, 00:30 da boshlash mumkin emas', async () => {
+      const su = (m, u, b) => call(m, u, { token: T.superadmin, body: b });
+      const N = must(await su('POST', '/api/restaurants', { name: 'Tungi 2', address: 'Nukus', phone: '+998901119901', start_time: '18:00', end_time: '02:00' }), 201);
+      const tok = await adminToken(call, T.superadmin, N.id, '+998911009901');
+      const t = must(await call('POST', `/api/restaurants/${N.id}/tables`, { token: tok, body: { seats: 4 } }), 201);
+      const d = day();
+      const at = (time, dur) => cust('POST', `/api/restaurants/${N.id}/reservations`, { table: t.id, reservation_date: d, reservation_time: time, duration_hours: dur });
+      assert.equal((await at('23:30', '2')).status, 201);
+      assert.equal((await at('00:30', '1')).status, 400);
+    });
+    it('table-schedule: barcha stollar va band oraliqlar, bekor qilingan hisoblanmaydi, mijoz ma\'lumoti yo\'q', async () => {
+      const small = await table(2); const big = await table(8); const d = day();
+      const b = must(await book(slot(big, d, '18:30', '1.5')), 201);
+      const get = async () => (await cust('GET', `/api/restaurants/${R}/table-schedule?date=${d}`)).body;
+      let list = await get();
+      const rowBig = list.find((x) => x.id === big.id);
+      const rowSmall = list.find((x) => x.id === small.id);
+      assert.deepEqual(rowBig.busy, [{ from: '18:30', to: '20:00' }]);
+      assert.deepEqual(rowSmall.busy, []);
+      assert.equal(rowSmall.seats, 2);
+      assert.ok(list.every((x) => x.client === undefined && x.busy.every((s) => Object.keys(s).length === 2)));
+      await cust('PATCH', `/api/reservations/${b.id}/cancel`);
+      list = await get();
+      assert.deepEqual(list.find((x) => x.id === big.id).busy, []);
+      assert.equal((await cust('GET', `/api/restaurants/${R}/table-schedule`)).status, 400);
+      assert.equal((await call('GET', `/api/restaurants/${R}/table-schedule?date=${d}`, { token: T.waiter })).status, 403);
+    });
     it('noto\'g\'ri parametrlar -> 400; ish vaqtidan tashqari -> 400; faqat mijoz', async () => {
       const base = `/api/restaurants/${R}/available-tables`;
       assert.equal((await cust('GET', base)).status, 400);

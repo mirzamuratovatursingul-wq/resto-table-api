@@ -67,7 +67,7 @@
         { name: 'Ro\'yxatdan o\'tish va kirish', desc: 'Yangi akkaunt, keyin login.', calls: ['POST /api/auth/register', 'POST /api/auth/login'] },
         { name: 'Restoranlar', desc: 'Qidiruv va tanlash.', calls: ['GET /api/restaurants', 'GET /api/restaurants/{id}'] },
         { name: 'Menyu', desc: 'Kategoriyalar ichida taomlar va narxlar.', calls: ['GET /api/restaurants/{id}/menu'] },
-        { name: 'Bron qilish', desc: 'Avval sana/vaqt/mehmon soni bo\'yicha bo\'sh stol qidiriladi, keyin bron qilinadi.', calls: ['GET /api/restaurants/{id}/available-tables', 'POST /api/restaurants/{id}/reservations'] },
+        { name: 'Bron qilish', desc: 'Avval sana/vaqt/mehmon soni bo\'yicha bo\'sh stol qidiriladi, keyin bron qilinadi.', calls: ['GET /api/restaurants/{id}/table-schedule', 'GET /api/restaurants/{id}/available-tables', 'POST /api/restaurants/{id}/reservations'] },
         { name: 'Mening bronlarim', desc: 'Bronlar ro\'yxati va bekor qilish.', calls: ['GET /api/reservations/my', 'PATCH /api/reservations/{id}/cancel'] },
         { name: 'Profil', desc: 'Ma\'lumot va parolni o\'zgartirish.', calls: ['GET /api/users/me', 'PATCH /api/users/me', 'POST /api/users/me/change-password'] },
       ],
@@ -291,6 +291,8 @@
     /* ================= BRONLAR ================= */
     E('reservations', 'GET', '/api/restaurants/{id}/available-tables', 'Bo\'sh stollarni topish', ['customer'], 'Bron formasidan oldin chaqiring: shu sana va vaqtda band bo\'lmagan, mehmonlar soniga yetarli stollar qaytadi.',
       { params: [idp('id', 'Restoran id'), q('reservation_date', 'Sana YYYY-MM-DD', '', true), q('reservation_time', 'Vaqt HH:MM', '18:00', true), q('duration_hours', 'Necha soat (boshlang\'ich 1)', '2'), q('guests', 'Mehmonlar soni', 3)], res: [M.table], errors: [[400, 'Restoran ish vaqtidan tashqari yoki o\'tgan vaqt.']] }),
+    E('reservations', 'GET', '/api/restaurants/{id}/table-schedule', 'Stollar jadvali (kun bo\'yicha)', ['customer'], 'Barcha stollar va shu kundagi band oraliqlari (faol bronlar, mijoz ma\'lumotisiz). Bron formasida qaysi stol nega mos emasligini va qaysi vaqtda joy yo\'qligini ko\'rsatish uchun.',
+      { params: [idp('id', 'Restoran id'), q('date', 'Sana YYYY-MM-DD', '2099-01-01', true)], res: [{ id: 1, number: 1, seats: 4, busy: [{ from: '18:00', to: '20:00' }] }], errors: [[400, 'Sana formati noto\'g\'ri.']] }),
     E('reservations', 'POST', '/api/restaurants/{id}/reservations', 'Bron qilish', ['customer'], 'Stol sig\'imi, restoran ish vaqti va boshqa bronlar bilan kesishuv tekshiriladi. Bron "pending" holatida boshlanadi, admin tasdiqlaydi.',
       { status: 201, params: [idp('id', 'Restoran id')], body: [f('table', 'integer', true, 'Stol id', 1), f('reservation_date', 'date', true, 'Sana YYYY-MM-DD', ''), f('reservation_time', 'time', true, 'Vaqt HH:MM', '18:00'), f('guests_count', 'integer', false, 'Mehmonlar soni', 3), f('duration_hours', 'decimal', false, 'Soat (boshlang\'ich 1, min 0.5)', '2')], res: M.reservation, errors: [[400, '{ "reservation_time": ["Bu stol ko\'rsatilgan vaqtda band."] }']] }),
     E('reservations', 'GET', '/api/reservations/my', 'Mening bronlarim', ['customer'], 'Mijozning o\'z bronlari.', { params: [q('page', 'Sahifa', 1)], res: page(M.myReservation) }),

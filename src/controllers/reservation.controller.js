@@ -21,10 +21,21 @@ const slotRules = {
 };
 
 // Sana/vaqt restaurant ish vaqtiga tushishi va o'tmishda bo'lmasligi kerak. Daqiqalarda [start, end) qaytaradi.
+// Yopilish vaqti ochilishdan katta bo'lmasa (masalan 09:00–00:00 yoki 18:00–02:00), smena yarim tundan o'tadi:
+// yopilish ertangi kunga, ya'ni +24 soatga suriladi. Aks holda 00:00 "0-daqiqa" bo'lib, hech qanday bron sig'maydi.
+const DAY_MIN = 24 * 60;
+const openingHours = (restaurant) => {
+  const open = timeToMinutes(restaurant.start_time);
+  const close = timeToMinutes(restaurant.end_time);
+  return { open, close: close <= open ? close + DAY_MIN : close };
+};
+
 function validateSlot(restaurant, { reservation_date: day, reservation_time: at, duration_hours: hours = 1 }) {
   const start = timeToMinutes(at);
   const end = start + hours * 60;
-  if (start < timeToMinutes(restaurant.start_time) || end > timeToMinutes(restaurant.end_time)) {
+  const { open, close } = openingHours(restaurant);
+  // Bron shu sanada (yarim tungacha) boshlanishi kerak; tugashi yarim tundan o'tishi mumkin
+  if (start < open || start >= DAY_MIN || end > close) {
     throw invalid('reservation_time', `Restoran ${restaurant.start_time} - ${restaurant.end_time} oralig'ida ishlaydi.`);
   }
   if (new Date(`${day}T${at}`) < new Date()) throw invalid('reservation_date', 'O\'tgan vaqtga bron qilib bo\'lmaydi.');
@@ -53,6 +64,33 @@ exports.availableTables = async (req, res) => {
   });
   const free = tables.filter((t) => !overlaps(booked.filter((r) => r.table === t._id), start, end));
   res.json(free.map(S.table));
+};
+
+const hhmm = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+// GET /api/restaurants/{id}/table-schedule?date=YYYY-MM-DD
+// Mijoz uchun: kun bo'yicha barcha stollar va ularning band oraliqlari (kim band qilgani ko'rsatilmaydi).
+// Shu orqali UI qaysi stol nega mos emasligini (sig'im yoki band) va qaysi vaqtda bo'sh joy yo'qligini ko'rsatadi.
+exports.tableSchedule = async (req, res) => {
+  const restaurantId = parseId(req.params.id);
+  await findOr404(Restaurant, restaurantId);
+  const q = parseBody(req.query, { date: date({ required: true }) });
+
+  const tables = await Table.find({ restaurant: restaurantId }).sort({ number: 1 });
+  const booked = await Reservation.find({
+    restaurant: restaurantId,
+    reservation_date: q.date,
+    status: { $nin: FREE_STATUSES },
+  });
+  res.json(tables.map((t) => ({
+    id: t._id,
+    number: t.number,
+    seats: t.seats,
+    busy: booked
+      .filter((r) => r.table === t._id)
+      .map((r) => { const s = timeToMinutes(r.reservation_time); return { from: hhmm(s), to: hhmm(s + r.duration_hours * 60) }; })
+      .sort((a, b) => a.from.localeCompare(b.from)),
+  })));
 };
 
 // POST /api/restaurants/{id}/reservations/   (mijoz)
